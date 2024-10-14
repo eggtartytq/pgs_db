@@ -7,7 +7,10 @@ conn = sqlite3.connect('pgs.db')
 
 def get_table_data(table_name):
     query = f"SELECT * FROM {table_name}"
-    return pd.read_sql_query(query, conn)
+    df = pd.read_sql_query(query, conn)
+    if 'filename' in df.columns:
+        df = df.drop(columns=['filename'])
+    return df
 
 def get_table_names():
     query = "SELECT name FROM sqlite_master WHERE type='table';"
@@ -22,13 +25,16 @@ def execute_custom_query(query):
 app_ui = ui.page_fluid(
     ui.h1("PGS Database Viewer"),
     ui.row(
-        ui.column(4,
-            ui.input_action_button("reset", "Reset to Main Page"),
-            ui.input_text("custom_query", "Enter your SQL query here:"),
-            ui.input_action_button("run_query", "Run Query"),
-            ui.output_text("selected_table_text"),
+        ui.column(3,
+            ui.div(
+                ui.input_action_button("reset", "Reset to Main Page", class_="btn-primary"),
+                ui.input_text("custom_query", "Enter your SQL query here:", width="100%"),
+                ui.input_action_button("run_query", "Run Query", class_="btn-success"),
+                ui.output_text("selected_table_text"),
+                style="background-color: lightblue; padding: 20px; height: 100vh;"
+            )
         ),
-        ui.column(8,
+        ui.column(9,
             ui.output_ui("table_output")
         )
     ),
@@ -61,9 +67,23 @@ def server(input, output, session):
             
             table_data['pgs_id'] = table_data['pgs_id'].apply(create_button)
         
-        # Convert DataFrame to HTML table
-        table_html = table_data.to_html(escape=False, index=False)
-        return ui.HTML(table_html)
+        # Convert DataFrame to HTML table with custom styling
+        table_html = table_data.to_html(escape=False, index=False, classes=['table', 'table-bordered'])
+        
+        # Add custom CSS for table styling
+        custom_css = """
+        <style>
+        .table th, .table td {
+            border-right: 1px solid #dee2e6;
+            text-align: right;
+        }
+        .table th:first-child, .table td:first-child {
+            text-align: left;
+        }
+        </style>
+        """
+        
+        return ui.HTML(custom_css + table_html)
 
     @reactive.Effect
     @reactive.event(input.reset)
